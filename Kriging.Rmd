@@ -1,0 +1,125 @@
+---
+title: "Kriging"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+```
+
+## Kriging
+
+
+```{r}
+# Function
+
+corfx <- function(d,theta){
+    r   <- 1/(1+exp(-theta[1])) # sigma-to-noise ratio
+    rho <- exp(theta[2])        # range
+    nu  <- exp(theta[3])        # smoothness
+    COR <- r*matern(d,rho,nu)
+    COR[d==0]<-1
+return(COR)}
+
+```
+
+
+
+```{r, message=FALSE}
+
+# Simulate data
+
+library(fields)
+library(geoR)
+
+n     <- 200
+p     <- 4
+sig2  <- 3
+r     <- 0.8
+rho   <- 0.1
+nu    <- 0.5
+beta  <- c(10,0,1,2)
+theta <- c(log(r/(1-r)),log(rho),log(nu))   
+
+S     <- cbind(runif(n),runif(n))
+X     <- matrix(rnorm(n*p),n,p)
+X[,1] <- 1   
+d     <- rdist(S);diag(d)<-0
+Cor   <- corfx(d,theta)
+Y     <- X%*%beta + t(chol(Cor))%*%rnorm(n,0,sqrt(sig2))
+
+```
+
+
+```{r}
+# Split into test and training
+
+ test <- runif(n)<0.1
+   S1   <- S[!test,]
+   X1   <- X[!test,]
+   Y1   <- Y[!test]
+   S2   <- S[test,]
+   X2   <- X[test,]
+   Y2   <- Y[test]
+
+```
+
+
+```{r}
+
+library(rstan)
+options(mc.cores = parallel::detectCores())
+rstan_options(auto_write = TRUE)
+
+krig.data <- list(N = 200, dist = d, Nobs=180, 
+                  yobs=Y[1:180,], Nmiss= 20, Xmat=X)
+
+fit <- stan(file="kriging.stan", data=krig.data, chains = 3, iter=2000)
+
+
+```
+
+
+```{r}
+
+ymiss <- rstan::extract(fit, pars=c("ymiss"))[[1]]
+boxplot(ymiss)
+lines(Y[181:200,1],col=4)
+
+as_tibble(ymiss)%>%gather()%>%ggplot(aes(key, value)) + geom_boxplot(fill=cbPalette[3]) + geom_point(data=data.frame(key=as.factor(paste("V", 1:20, sep="")), value=Y[181:200,1]), aes(key, value), color="red", size=2)
+
+```
+
+
+```{r}
+
+ntm_relab <- read.delim("Gebert_SMP_Mapping_Plates1_7_COMPLETE_16S_FINAL_August2017_SampleEdit (1).txt", stringsAsFactors=FALSE)
+
+ntm_relab$Latitude <- as.numeric(ntm_relab$Latitude)
+ntm_relab$Longitude <- as.numeric(ntm_relab$Longitude)
+
+ntm_contigusa <- ntm_relab%>%
+  filter(Latitude> 24 & Latitude <50 & 
+           Longitude > -130)
+
+ntm_contigusa$Myco_Rel_Abund[which(ntm_contigusa$Myco_Rel_Abund == 0)] <- 
+   abs(rnorm(length(which(ntm_contigusa$Myco_Rel_Abund == 0)),0, 1))
+ntm_contigusa$Myco_Rel_Prop <- ntm_contigusa$Myco_Rel_Abund/100 
+
+dists <- rdist.earth(x1=ntm_contigusa[,c("Longitude", "Latitude")])
+
+
+krig.data <- list(N = 563, dist = dists, Nobs=500, 
+                  yobs=log(ntm_contigusa$Myco_Rel_Prop[1:500]/(1-ntm_contigusa$Myco_Rel_Prop[1:500])), 
+                           Nmiss= 63)
+
+fit <- stan(file="kriging.stan", data=krig.data, chains = 3, iter=2000)
+
+
+```
+
+```{r}
+as_tibble(ymiss)%>%gather()%>%ggplot(aes(key, value)) + geom_boxplot(fill=cbPalette[3]) + geom_point(data=data.frame(key=as.factor(paste("V", 1:63, sep="")), value=log(ntm_contigusa$Myco_Rel_Prop[501:563]/(1-ntm_contigusa$Myco_Rel_Prop[501:563]))), aes(key, value), color="red", size=2)
+```
