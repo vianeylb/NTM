@@ -122,7 +122,30 @@ ntm_cusa_long%>%
 
 
 
+```{r}
+ntm_cusa_long_categ <- ntm_contigusa%>%
+  gather(categorical_covariates, value, -Myco_Rel_Abund, -Latitude, -Longitude, -X.SampleID, -Seq_Run, 
+         -pH, -Total_Alkalinity, -Total_Hardness, -Free_Chlorine, -Total_Chlorine, -Nitrite, -Nitrate, 
+         -Total_Iron)
 
+
+ntm_cusa_long_categ%>%
+  ggplot(aes(value)) + 
+  geom_bar(color="black", alpha = 0.7) + 
+  facet_wrap(~categorical_covariates, scales="free_x") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        text=element_text(size=30)) 
+
+
+ntm_cusa_long_categ%>%
+  ggplot(aes(value, Myco_Rel_Abund)) + 
+  geom_point(alpha = 0.2) + 
+  facet_wrap(~categorical_covariates, scales="free") +
+  theme_minimal()  + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        text=element_text(size=30))
+```
 
 
 
