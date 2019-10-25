@@ -99,6 +99,8 @@ ntm_relab <- read.delim("Gebert_SMP_Mapping_Plates1_7_COMPLETE_16S_FINAL_August2
 
 ntm_relab$Latitude <- as.numeric(ntm_relab$Latitude)
 ntm_relab$Longitude <- as.numeric(ntm_relab$Longitude)
+ntm_relab$Free_Chlorine <- as.numeric(ntm_relab$Free_Chlorine)
+ntm_relab$Total_Chlorine <- as.numeric(ntm_relab$Total_Chlorine)
 
 ntm_contigusa <- ntm_relab%>%
   filter(Latitude> 24 & Latitude <50 & 
@@ -123,3 +125,45 @@ fit <- stan(file="kriging.stan", data=krig.data, chains = 3, iter=2000)
 ```{r}
 as_tibble(ymiss)%>%gather()%>%ggplot(aes(key, value)) + geom_boxplot(fill=cbPalette[3]) + geom_point(data=data.frame(key=as.factor(paste("V", 1:63, sep="")), value=log(ntm_contigusa$Myco_Rel_Prop[501:563]/(1-ntm_contigusa$Myco_Rel_Prop[501:563]))), aes(key, value), color="red", size=2)
 ```
+
+
+
+```{r}
+
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+
+# Has two NA values: ntm_contigusa$Total_Chlorine
+## for now: 
+ntm_contigusa$Total_Chlorine[is.na(ntm_contigusa$Total_Chlorine)] <- 0
+
+krig.data.wcovs <- list(N = 563, dist = dists, Nobs=500,
+                        Xmat = cbind(1, ntm_contigusa$Total_Chlorine - 0.5),
+                  yobs=log(ntm_contigusa$Myco_Rel_Prop[1:500]/(1-ntm_contigusa$Myco_Rel_Prop[1:500])), 
+                           Nmiss= 63)
+
+
+fit <- stan(file="kriging.stan", data=krig.data.wcovs, chains=1, iter=1000)
+
+
+### Subset of the data
+
+krig.data.wcovs.subset <- list(N = 100, dist = dists[1:100, 1:100], Nobs=80,
+                        Xmat = cbind(1, ntm_contigusa$Total_Chlorine[1:100] - 0.5),
+                  yobs=log(ntm_contigusa$Myco_Rel_Prop[1:80]/(1-ntm_contigusa$Myco_Rel_Prop[1:80])), 
+                           Nmiss= 20)
+
+
+fit <- stan(file="kriging.stan", data=krig.data.wcovs.subset, chains=1, iter=1000)
+
+ymiss <- rstan::extract(fit, pars=c("ymiss"))[[1]]
+boxplot(ymiss)
+lines(Y[181:200,1],col=4)
+
+as_tibble(inv.logit(ymiss))%>%gather()%>%ggplot(aes(key, value)) + geom_boxplot(fill=cbPalette[3]) + geom_point(data=data.frame(key=as.factor(paste("V", 1:20, sep="")), value=ntm_contigusa$Myco_Rel_Prop[81:100]), aes(key, value), color="red", size=2)
+
+```
+
+
+
+
+

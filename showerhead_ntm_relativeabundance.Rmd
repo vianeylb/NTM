@@ -8,6 +8,15 @@ ntm_relab <- read.delim("Gebert_SMP_Mapping_Plates1_7_COMPLETE_16S_FINAL_August2
 
 ntm_relab$Latitude <- as.numeric(ntm_relab$Latitude)
 ntm_relab$Longitude <- as.numeric(ntm_relab$Longitude)
+ntm_relab$pH <- as.numeric(ntm_relab$pH)
+ntm_relab$Total_Alkalinity <- as.numeric(ntm_relab$Total_Alkalinity)
+ntm_relab$Total_Hardness <- as.numeric(ntm_relab$Total_Hardness)
+ntm_relab$Free_Chlorine <- as.numeric(ntm_relab$Free_Chlorine)
+ntm_relab$Total_Chlorine <- as.numeric(ntm_relab$Total_Chlorine)
+ntm_relab$Nitrite <- as.numeric(ntm_relab$Nitrite)
+ntm_relab$Nitrate <- as.numeric(ntm_relab$Nitrate)
+ntm_relab$Total_Iron <- as.numeric(ntm_relab$Total_Iron)
+
 
 ```
 
@@ -71,7 +80,7 @@ ggplot(data=ntm_contigusa, aes(Longitude, Latitude)) +
 
 ntm_contigusa%>%
   ggplot(aes(Myco_Rel_Abund)) + 
-  geom_histogram(fill=cbPalette[4], alpha=0.7) +
+  geom_histogram(fill=cbPalette[4], alpha=0.7, color="black") +
   theme_minimal()
 
 ```
@@ -82,7 +91,31 @@ There are `r sum(ntm_contigusa$Myco_Rel_Abund==0)` zero counts for NTM out of `r
 
 ```{r}
 
-## Spatial Modeling of NTM Relative Abundance
+# Visualizing the covariates in the data set
+
+ntm_cusa_long <- ntm_contigusa%>%
+  gather(covariates, value, -Myco_Rel_Abund, -Latitude, -Longitude, -X.SampleID, -Seq_Run, 
+         -Source.of.Household.Water, -Showerhead.Installation.Time.Frame,
+         -Frequency.of.Household.Shower.Usage, -Frequency.of.Showerhead.Cleaning, 
+         -Showerhead.Cleaning.Solution, -Showerhead.Material, -Interior.Showerhead.Finish, 
+         -Showerhead.System.Setup, -Does.the.Showerhead.Have.a.Filter., 
+         -Showerhead.Spray.Pattern.Description, -How.is.Water.Heated, -Age.of.Hot.Water.Heater,
+         -Hot.Water.Heater.Flush.Frequency, -Description)
+   
+ntm_cusa_long%>%
+  ggplot(aes(value)) + 
+  geom_histogram(aes(fill=covariates), color="black", alpha = 0.7) + 
+  facet_wrap(~covariates, scales="free") +
+  theme_minimal() +
+  scale_fill_manual(values=cbPalette)
+  
+
+ntm_cusa_long%>%
+  ggplot(aes(value, Myco_Rel_Abund)) + 
+  geom_point(aes(color=covariates), alpha = 0.2) + 
+  facet_wrap(~covariates, scales="free") +
+  theme_minimal() + 
+  scale_colour_manual(values=cbPalette)
 
 
 ```
